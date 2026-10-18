@@ -314,7 +314,7 @@ function viewEditor(){
 
   <section>
     <div class="sechead"><h2>Partidas</h2><span class="muted small">${d.lineas.length} líneas</span></div>
-    <div class="list" id="lineas">${d.lineas.map((l,i)=>lineHTML(l,i)).join("")||`<div class="empty">Añade partidas desde tu lista de precios, a mano o con IA.</div>`}</div>
+    <div class="list" id="lineas">${d.lineas.map((l,i)=>lineHTML(l,i)).join("")||`<div class="empty">Añade partidas desde tu lista de precios o a mano.</div>`}</div>
     <div class="row">
       <button class="btn btn-dark" id="addCat">+ De mis precios</button>
       <button class="btn" id="addFree">+ Partida libre</button>
