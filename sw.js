@@ -1,5 +1,5 @@
 // Guarda la app en el móvil para que abra sin conexión. Cambia VERSION al publicar cambios.
-const VERSION = "v1";
+const VERSION = "v2";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png",
   "vendor/jspdf.umd.min.js", "vendor/jspdf.plugin.autotable.min.js"];
 
