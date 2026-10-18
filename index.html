@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Presupuestos de Obra</title>
+<meta name="description" content="Presupuestos de reformas rápidos desde el móvil">
+<meta name="theme-color" content="#e2a400">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Presupuestos">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: app de una columna para móvil, barra de pestañas fija abajo, tarjetas solo donde separan objetos (partidas). */
+:root{
+  --bg:#f3f2ee; --surface:#ffffff; --ink:#22262b; --muted:#6b6f73; --line:#dcdad3;
+  --accent:#e2a400; --accent-ink:#1d1a10; --accent-soft:#fbf1d2;
+  --ok:#2f7d4f; --warn:#b26a00; --bad:#b3362c; --info:#2d5f8a;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17191c; --surface:#212428; --ink:#ecebe6; --muted:#9a9ea3; --line:#33373c;
+  --accent:#f0b625; --accent-ink:#1d1a10; --accent-soft:#3a3218;
+  --ok:#5cb37f; --warn:#e0a03d; --bad:#e2675c; --info:#6fa3d1; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17191c; --surface:#212428; --ink:#ecebe6; --muted:#9a9ea3; --line:#33373c;
+  --accent:#f0b625; --accent-ink:#1d1a10; --accent-soft:#3a3218;
+  --ok:#5cb37f; --warn:#e0a03d; --bad:#e2675c; --info:#6fa3d1; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 110px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1{font-size:1.9rem;line-height:1.05}
+h2{font-size:1.25rem;text-transform:uppercase;letter-spacing:.05em}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.tape{height:8px;border-radius:2px;margin:6px 0 16px;background:repeating-linear-gradient(90deg,var(--accent) 0 18px,var(--accent-ink) 18px 20px);opacity:.9}
+section{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:4px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 11px;width:100%;min-width:0;text-transform:none;letter-spacing:0;font-weight:400}
+textarea{resize:vertical;min-height:70px}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:420px){.grid2.stack{grid-template-columns:1fr}}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:11px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;min-height:44px}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-dark{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted);padding:8px}
+.btn-danger{color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 auto}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;gap:10px;align-items:center;cursor:pointer;text-align:left;width:100%}
+.item .grow{flex:1;min-width:0}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.st-borrador{color:var(--muted)} .st-enviado{color:var(--info)} .st-aceptado{color:var(--ok)} .st-rechazado{color:var(--bad)} .st-factura{color:var(--warn)}
+.line{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;grid-template-columns:1fr;gap:8px}
+.line .qty{display:grid;grid-template-columns:1fr 84px 1fr auto;gap:8px;align-items:end}
+.line .tot{font-family:var(--f-num);font-weight:500;text-align:right;padding-bottom:10px;white-space:nowrap}
+.totals{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px}
+.totals .r{display:flex;justify-content:space-between;gap:10px}
+.totals .grand{font-family:var(--f-display);font-size:1.8rem;font-weight:700;border-top:2px solid var(--ink);padding-top:8px;margin-top:4px}
+.totals .grand .num{font-family:var(--f-display)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat{border-left:3px solid var(--accent);padding:2px 0 2px 10px}
+.stat b{display:block;font-family:var(--f-display);font-size:1.4rem}
+.stat span{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:20}
+.tabs button{border:0;border-radius:0;background:transparent;flex-direction:column;gap:2px;font-size:.75rem;color:var(--muted);padding:8px 2px;min-height:58px}
+.tabs button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--accent)}
+.tabs svg{width:22px;height:22px}
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:21;border-radius:99px;padding:14px 20px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:88%;border-radius:16px 16px 0 0;display:flex;flex-direction:column;padding:14px max(16px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));gap:10px}
+.sheet .body{overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chips button{min-height:34px;padding:6px 12px;border-radius:99px;font-size:.85rem;white-space:nowrap;flex:0 0 auto}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sig{border:1px dashed var(--muted);border-radius:var(--r);background:var(--surface);touch-action:none;width:100%;height:160px;display:block}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:40;font-weight:600;max-width:90%;text-align:center}
+.note{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.9rem}
+.empty{text-align:center;padding:30px 10px;color:var(--muted)}
+.export{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.export .wide{grid-column:1/-1}
+.logo-prev{max-height:60px;max-width:160px;object-fit:contain}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.6}}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<nav class="tabs" aria-label="Secciones">
+  <button data-tab="lista" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4h10l3 3v13H4V4h3"/><path d="M8 11h8M8 15h8M8 7h4"/></svg>Presupuestos</button>
+  <button data-tab="editor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Editar</button>
+  <button data-tab="catalogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>Precios</button>
+  <button data-tab="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Mi empresa</button>
+</nav>
+
+<script>
+(function(){
+"use strict";
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const eur=n=>(Math.round((+n||0)*100)/100).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const today=()=>new Date().toISOString().slice(0,10);
+const fmtDate=d=>{if(!d)return"";const [y,m,dd]=d.split("-");return `${dd}/${m}/${y}`};
+
+/* ---------- Catálogo de partidas por defecto (precios orientativos, España 2026) ---------- */
+const CAT0=[
+ ["Demoliciones","Demolición de alicatado en paredes","m²",12],
+ ["Demoliciones","Levantado de pavimento cerámico","m²",14],
+ ["Demoliciones","Desmontaje de sanitarios y retirada","ud",45],
+ ["Demoliciones","Contenedor de escombros 5 m³","ud",220],
+ ["Albañilería","Tabique de ladrillo / pladur","m²",38],
+ ["Albañilería","Recrecido y nivelado de suelo","m²",18],
+ ["Albañilería","Enlucido de yeso en paredes","m²",14],
+ ["Albañilería","Falso techo de pladur","m²",32],
+ ["Alicatado y solado","Alicatado de paredes (mano de obra)","m²",28],
+ ["Alicatado y solado","Solado cerámico / porcelánico (mano de obra)","m²",30],
+ ["Alicatado y solado","Suelo laminado colocado","m²",26],
+ ["Alicatado y solado","Rodapié colocado","ml",9],
+ ["Fontanería","Punto de agua (fría/caliente)","ud",95],
+ ["Fontanería","Instalación de plato de ducha","ud",280],
+ ["Fontanería","Colocación de inodoro","ud",120],
+ ["Fontanería","Colocación de lavabo con mueble","ud",140],
+ ["Fontanería","Mampara de ducha colocada","ud",320],
+ ["Fontanería","Termo eléctrico 80 L instalado","ud",390],
+ ["Electricidad","Punto de luz","ud",55],
+ ["Electricidad","Enchufe / toma de corriente","ud",48],
+ ["Electricidad","Cuadro eléctrico nuevo","ud",450],
+ ["Electricidad","Foco LED empotrado colocado","ud",35],
+ ["Pintura","Pintura plástica paredes (2 manos)","m²",8],
+ ["Pintura","Pintura de techos","m²",9],
+ ["Pintura","Alisado de gotelé","m²",11],
+ ["Carpintería","Puerta interior colocada","ud",290],
+ ["Carpintería","Ventana PVC/aluminio colocada","ud",480],
+ ["Cocina","Muebles de cocina (montaje)","ml",95],
+ ["Cocina","Encimera colocada","ml",180],
+ ["Varios","Limpieza final de obra","ud",150],
+ ["Varios","Hora de oficial","h",30],
+ ["Varios","Hora de peón","h",22]
+].map(([cat,desc,ud,precio])=>({id:uid(),cat,desc,ud,precio}));
+
+const DEF_COND="Validez del presupuesto: 30 días.\nForma de pago: 40% al aceptar, 40% a mitad de obra, 20% al finalizar.\nNo incluye licencias ni tasas municipales salvo que se indique.\nCualquier trabajo no incluido se presupuestará aparte.";
+const UNITS=["ud","m²","ml","m³","h","kg","pa"];
+const STATES=[["borrador","Borrador"],["enviado","Enviado"],["aceptado","Aceptado"],["rechazado","Rechazado"],["factura","Facturado"]];
+
+/* ---------- Estado ---------- */
+let S={config:{empresa:{nombre:"",nif:"",tel:"",email:"",dir:"",logo:"",iban:""},catalogo:CAT0,seq:{P:0,F:0},iva:21,cond:DEF_COND,ejemplo:true},docs:{}};
+let tab="lista", cur=null, filtro="todos";
+let db=null, base=null, dlCap=null, sampleCap=null;
+
+const LS="presup-obra-v1";
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+function lsLoad(){try{const v=JSON.parse(localStorage.getItem(LS)||"null");if(v&&v.config)S=v}catch(e){}}
+
+/* Guardado en la nube (privado por usuario) con espera para agrupar cambios */
+const pending=new Map(); let flushT=null, flushing=false;
+function persist(key){lsSave();if(!base)return;pending.set(key,true);clearTimeout(flushT);flushT=setTimeout(flush,900)}
+async function flush(){
+  if(flushing||!base){return}
+  flushing=true;
+  try{
+    for(const key of [...pending.keys()]){
+      pending.delete(key);
+      const ref=base.doc(key);
+      if(key==="config") await ref.set(S.config);
+      else if(S.docs[key]) await ref.set(S.docs[key]);
+      else await ref.delete();
+    }
+  }catch(e){console.warn("guardar",e)}
+  flushing=false;
+  if(pending.size) flushT=setTimeout(flush,900);
+}
+
+function sampleDoc(){
+  // Presupuesto de ejemplo visible al abrir por primera vez
+  const id="p-"+uid();
+  S.config.seq.P=1;
+  S.docs[id]={id,tipo:"P",num:"P-"+new Date().getFullYear()+"-001",estado:"borrador",fecha:today(),validez:30,
+    cliente:{nombre:"EJEMPLO · María López",tel:"600000000",dir:"C/ Mayor 12, 2ºB"},titulo:"Reforma de baño completo",
+    lineas:[
+      {id:uid(),desc:"Demolición de alicatado en paredes",cant:18,ud:"m²",precio:12},
+      {id:uid(),desc:"Instalación de plato de ducha",cant:1,ud:"ud",precio:280},
+      {id:uid(),desc:"Alicatado de paredes (mano de obra)",cant:18,ud:"m²",precio:28},
+      {id:uid(),desc:"Colocación de inodoro",cant:1,ud:"ud",precio:120},
+      {id:uid(),desc:"Punto de luz",cant:2,ud:"ud",precio:55}],
+    dto:0,iva:10,irpf:0,anticipo:40,cond:DEF_COND,firma:"",creado:Date.now(),mod:Date.now()};
+}
+
+/* ---------- Cálculos ---------- */
+function calc(d){
+  const sub=d.lineas.reduce((a,l)=>a+(+l.cant||0)*(+l.precio||0),0);
+  const dto=sub*(+d.dto||0)/100, base=sub-dto;
+  const iva=base*(+d.iva||0)/100, irpf=base*(+d.irpf||0)/100;
+  const total=base+iva-irpf, anticipo=total*(+d.anticipo||0)/100;
+  return {sub,dto,base,iva,irpf,total,anticipo};
+}
+function nextNum(t){const y=new Date().getFullYear();S.config.seq[t]=(S.config.seq[t]||0)+1;return `${t}-${y}-${String(S.config.seq[t]).padStart(3,"0")}`}
+
+/* ---------- UI helpers ---------- */
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2300)}
+function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(b=>{if(b.dataset.tab===t)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});render();window.scrollTo(0,0)}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{if(b.dataset.tab==="editor"&&!cur){newDoc();return}setTab(b.dataset.tab)});
+
+function render(){
+  const app=$("#app");
+  if(tab==="lista") app.innerHTML=viewLista();
+  else if(tab==="editor") app.innerHTML=viewEditor();
+  else if(tab==="catalogo") app.innerHTML=viewCatalogo();
+  else app.innerHTML=viewAjustes();
+  bind();
+}
+
+/* ---------- Vista: lista ---------- */
+function viewLista(){
+  const all=Object.values(S.docs).sort((a,b)=>(b.mod||0)-(a.mod||0));
+  const acept=all.filter(d=>d.estado==="aceptado"||d.estado==="factura");
+  const pend=all.filter(d=>d.estado==="enviado");
+  const sum=a=>a.reduce((s,d)=>s+calc(d).total,0);
+  const list=all.filter(d=>filtro==="todos"||d.estado===filtro);
+  return `
+  <div class="top"><div><h1>Presupuestos</h1><div class="muted small">${esc(S.config.empresa.nombre||"Tu empresa de reformas")}</div></div></div>
+  <div class="tape" aria-hidden="true"></div>
+  <div class="stats">
+    <div class="stat"><b class="num">${all.length}</b><span>Total</span></div>
+    <div class="stat"><b class="num">${eur(sum(pend)).replace(",00","")}</b><span>Pendiente</span></div>
+    <div class="stat"><b class="num">${eur(sum(acept)).replace(",00","")}</b><span>Aceptado</span></div>
+  </div>
+  <div class="chips" role="group" aria-label="Filtrar">
+    ${[["todos","Todos"],...STATES].map(([k,l])=>`<button data-filtro="${k}" aria-pressed="${filtro===k}">${l}</button>`).join("")}
+  </div>
+  <div class="list" style="margin-top:10px">
+    ${list.length?list.map(d=>{const c=calc(d);return `
+      <button class="item" data-open="${d.id}">
+        <div class="grow"><div class="t">${esc(d.cliente.nombre||"Sin cliente")}</div>
+        <div class="muted small">${esc(d.num)} · ${esc(d.titulo||"")} · ${fmtDate(d.fecha)}</div></div>
+        <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <span class="num">${eur(c.total)}</span><span class="pill st-${d.estado}">${(STATES.find(s=>s[0]===d.estado)||[])[1]||""}</span></div>
+      </button>`}).join(""):`<div class="empty">No hay presupuestos aquí todavía.<br>Pulsa <b>+ Nuevo</b> para crear el primero.</div>`}
+  </div>
+  <button class="btn btn-primary fab" id="fabNew">+ Nuevo presupuesto</button>`;
+}
+
+/* ---------- Vista: editor ---------- */
+function viewEditor(){
+  const d=S.docs[cur]; if(!d){return `<div class="empty">Elige un presupuesto o crea uno nuevo.</div>`}
+  const c=calc(d); const isF=d.tipo==="F";
+  return `
+  <div class="top">
+    <button class="btn-ghost btn" id="back">‹ Volver</button>
+    <select id="estado" aria-label="Estado" style="width:auto">${STATES.map(([k,l])=>`<option value="${k}" ${d.estado===k?"selected":""}>${l}</option>`).join("")}</select>
+  </div>
+  <h1>${isF?"Factura":"Presupuesto"} <span class="num" style="font-size:1.1rem">${esc(d.num)}</span></h1>
+  <div class="tape" aria-hidden="true"></div>
+
+  <section>
+    <div class="sechead"><h2>Cliente y obra</h2></div>
+    <label>Cliente<input id="c_nombre" value="${esc(d.cliente.nombre)}" placeholder="Nombre y apellidos" autocomplete="off"></label>
+    <div class="grid2 stack">
+      <label>Teléfono<input id="c_tel" inputmode="tel" value="${esc(d.cliente.tel)}" placeholder="600 000 000"></label>
+      <label>Fecha<input id="fecha" type="date" value="${esc(d.fecha)}"></label>
+    </div>
+    <label>Dirección de la obra<input id="c_dir" value="${esc(d.cliente.dir)}" placeholder="Calle, número, localidad"></label>
+    <label>Trabajo<input id="titulo" value="${esc(d.titulo)}" placeholder="Ej.: Reforma de cocina"></label>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Partidas</h2><span class="muted small">${d.lineas.length} líneas</span></div>
+    <div class="list" id="lineas">${d.lineas.map((l,i)=>lineHTML(l,i)).join("")||`<div class="empty">Añade partidas desde tu lista de precios, a mano o con IA.</div>`}</div>
+    <div class="row">
+      <button class="btn btn-dark" id="addCat">+ De mis precios</button>
+      <button class="btn" id="addFree">+ Partida libre</button>
+    </div>
+    <button class="btn" id="addAI" ${sampleCap?"":"hidden"}>✦ Escribir la obra y que la IA saque las partidas</button>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Totales</h2></div>
+    <div class="grid3">
+      <label>Dto. %<input id="dto" type="number" inputmode="decimal" min="0" max="100" value="${d.dto}"></label>
+      <label>IVA<select id="iva">${[21,10,4,0].map(v=>`<option value="${v}" ${+d.iva===v?"selected":""}>${v}%</option>`).join("")}</select></label>
+      <label>IRPF<select id="irpf">${[0,7,15].map(v=>`<option value="${v}" ${+d.irpf===v?"selected":""}>${v?"-"+v+"%":"No"}</option>`).join("")}</select></label>
+    </div>
+    <div class="note">IVA 10%: reformas en vivienda particular con materiales por debajo del 40% del total. IVA 21%: locales, empresas o mucho material.</div>
+    <div class="totals" id="totals">${totalsHTML(d,c)}</div>
+    <label>Anticipo a la firma %<input id="anticipo" type="number" inputmode="decimal" min="0" max="100" value="${d.anticipo}"></label>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Condiciones</h2></div>
+    <textarea id="cond" rows="5">${esc(d.cond)}</textarea>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Firma del cliente</h2>${d.firma?`<span class="pill st-aceptado">Firmado</span>`:""}</div>
+    ${d.firma?`<img src="${d.firma}" alt="Firma del cliente" style="background:#fff;border-radius:8px;max-height:140px;border:1px solid var(--line)"><button class="btn btn-danger" id="sigClear2">Borrar firma</button>`:
+    `<canvas class="sig" id="sig" aria-label="Zona para firmar con el dedo"></canvas>
+     <div class="row"><button class="btn" id="sigClear">Limpiar</button><button class="btn btn-primary" id="sigSave">Guardar firma y aceptar</button></div>`}
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Enviar</h2></div>
+    <div class="export">
+      <button class="btn btn-primary wide" id="sharePdf" ${canShareFiles()?"":"hidden"}>Enviar PDF (WhatsApp, email…)</button>
+      <button class="btn ${canShareFiles()?"":"btn-primary"} wide" id="pdf">⬇ Descargar PDF</button>
+      <a class="btn" id="wa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <button class="btn" id="copy">Copiar texto</button>
+      <button class="btn" id="dup">Duplicar</button>
+      ${isF?"":`<button class="btn" id="toF">Pasar a factura</button>`}
+      <button class="btn btn-danger ${isF?"":"wide"}" id="del">Eliminar</button>
+    </div>
+    <div id="delConfirm" hidden class="note">¿Seguro que quieres borrar este documento? <div class="row" style="margin-top:8px"><button class="btn btn-danger" id="delYes">Sí, borrar</button><button class="btn" id="delNo">Cancelar</button></div></div>
+  </section>`;
+}
+function lineHTML(l,i){
+  return `<div class="line" data-line="${l.id}">
+    <div style="display:flex;gap:6px;align-items:flex-start"><textarea data-f="desc" rows="1" style="min-height:44px" aria-label="Descripción">${esc(l.desc)}</textarea>
+    <button class="btn-ghost btn" data-del="${l.id}" aria-label="Quitar partida">✕</button></div>
+    <div class="qty">
+      <label>Cant.<input data-f="cant" type="number" inputmode="decimal" step="any" value="${l.cant}"></label>
+      <label>Ud.<select data-f="ud">${UNITS.map(u=>`<option ${u===l.ud?"selected":""}>${u}</option>`).join("")}</select></label>
+      <label>Precio €<input data-f="precio" type="number" inputmode="decimal" step="any" value="${l.precio}"></label>
+      <div class="tot" data-tot>${eur((+l.cant||0)*(+l.precio||0))}</div>
+    </div></div>`;
+}
+function totalsHTML(d,c){
+  return `<div class="r"><span>Subtotal</span><span class="num">${eur(c.sub)}</span></div>
+  ${c.dto?`<div class="r"><span>Descuento ${d.dto}%</span><span class="num">-${eur(c.dto)}</span></div><div class="r"><span>Base imponible</span><span class="num">${eur(c.base)}</span></div>`:""}
+  <div class="r"><span>IVA ${d.iva}%</span><span class="num">${eur(c.iva)}</span></div>
+  ${c.irpf?`<div class="r"><span>Retención IRPF ${d.irpf}%</span><span class="num">-${eur(c.irpf)}</span></div>`:""}
+  <div class="r grand"><span>TOTAL</span><span class="num">${eur(c.total)}</span></div>
+  ${+d.anticipo?`<div class="r muted"><span>Anticipo ${d.anticipo}%</span><span class="num">${eur(c.anticipo)}</span></div>`:""}`;
+}
+
+/* ---------- Vista: catálogo ---------- */
+let catFiltro="", catCat="Todas";
+function viewCatalogo(){
+  const cats=["Todas",...new Set(S.config.catalogo.map(x=>x.cat))];
+  return `<div class="top"><div><h1>Mis precios</h1><div class="muted small">Toca un precio para cambiarlo. Se usa al añadir partidas.</div></div></div>
+  <div class="tape" aria-hidden="true"></div>
+  ${S.config.ejemplo?`<div class="note" style="margin-bottom:12px">Son precios orientativos de ejemplo. Ajústalos a lo que tú cobras.</div>`:""}
+  ${catListHTML(cats,false)}
+  <section style="margin-top:18px">
+    <div class="sechead"><h2>Añadir precio</h2></div>
+    <label>Descripción<input id="n_desc" placeholder="Ej.: Instalación de suelo radiante"></label>
+    <div class="grid3"><label>Categoría<input id="n_cat" list="catlist" placeholder="Fontanería"></label>
+      <label>Ud.<select id="n_ud">${UNITS.map(u=>`<option>${u}</option>`).join("")}</select></label>
+      <label>Precio €<input id="n_precio" type="number" inputmode="decimal" step="any"></label></div>
+    <datalist id="catlist">${cats.slice(1).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
+    <button class="btn btn-primary" id="n_add">Guardar en mis precios</button>
+  </section>`;
+}
+function catListHTML(cats,picking){
+  const q=catFiltro.toLowerCase();
+  const items=S.config.catalogo.filter(x=>(catCat==="Todas"||x.cat===catCat)&&(!q||x.desc.toLowerCase().includes(q)||x.cat.toLowerCase().includes(q)));
+  return `<input id="catq" type="search" placeholder="Buscar: alicatado, punto de luz…" value="${esc(catFiltro)}" aria-label="Buscar">
+  <div class="chips" style="margin-top:8px">${cats.map(c=>`<button data-catcat="${esc(c)}" aria-pressed="${c===catCat}">${esc(c)}</button>`).join("")}</div>
+  <div class="list" style="margin-top:8px" id="catitems">${items.map(x=>picking?
+    `<button class="item" data-pick="${x.id}"><div class="grow"><div class="t" style="white-space:normal">${esc(x.desc)}</div><div class="muted small">${esc(x.cat)}</div></div><span class="num">${eur(x.precio)}/${esc(x.ud)}</span><span class="pill" style="color:var(--accent)">+</span></button>`:
+    `<div class="item" style="cursor:default"><div class="grow"><div class="t" style="white-space:normal">${esc(x.desc)}</div><div class="muted small">${esc(x.cat)} · ${esc(x.ud)}</div></div>
+     <input data-cprice="${x.id}" type="number" inputmode="decimal" step="any" value="${x.precio}" style="width:90px" aria-label="Precio de ${esc(x.desc)}">
+     <button class="btn-ghost btn" data-cdel="${x.id}" aria-label="Borrar">✕</button></div>`).join("")||`<div class="empty">Nada coincide con la búsqueda.</div>`}</div>`;
+}
+
+/* ---------- Vista: ajustes ---------- */
+function viewAjustes(){
+  const e=S.config.empresa;
+  return `<div class="top"><div><h1>Mi empresa</h1><div class="muted small">Sale en la cabecera de cada PDF.</div></div></div>
+  <div class="tape" aria-hidden="true"></div>
+  <section>
+    <label>Nombre o razón social<input id="e_nombre" value="${esc(e.nombre)}" placeholder="Reformas Pérez"></label>
+    <div class="grid2 stack"><label>NIF / CIF<input id="e_nif" value="${esc(e.nif)}"></label>
+    <label>Teléfono<input id="e_tel" inputmode="tel" value="${esc(e.tel)}"></label></div>
+    <label>Email<input id="e_email" type="email" value="${esc(e.email)}"></label>
+    <label>Dirección<input id="e_dir" value="${esc(e.dir)}"></label>
+    <label>IBAN (para facturas)<input id="e_iban" value="${esc(e.iban)}"></label>
+    <label>Logo<input id="e_logo" type="file" accept="image/*"></label>
+    ${e.logo?`<div class="row" style="align-items:center"><img class="logo-prev" src="${e.logo}" alt="Logo"><button class="btn btn-danger" id="logoDel" style="flex:0 0 auto">Quitar logo</button></div>`:""}
+  </section>
+  <section>
+    <div class="sechead"><h2>Por defecto</h2></div>
+    <label>IVA habitual<select id="def_iva">${[21,10,4,0].map(v=>`<option value="${v}" ${+S.config.iva===v?"selected":""}>${v}%</option>`).join("")}</select></label>
+    <label>Condiciones habituales<textarea id="def_cond" rows="5">${esc(S.config.cond)}</textarea></label>
+  </section>
+  <section>
+    <div class="sechead"><h2>Copia de seguridad</h2></div>
+    <p class="small muted" style="margin:0">Todo se guarda en este móvil. Haz una copia de vez en cuando (por ejemplo, envíatela por WhatsApp o guárdala en Drive) por si cambias de móvil o se borra el navegador.</p>
+    <div class="row"><button class="btn btn-dark" id="bk">Guardar copia</button>
+    <label class="btn" style="flex-direction:row;text-transform:none;letter-spacing:0;font-size:1rem;color:var(--ink)">Restaurar copia<input id="rs" type="file" accept=".json,application/json" hidden></label></div>
+  </section>
+  <p class="muted small">Para tenerla como una app: en el navegador, menú ⋮ → «Añadir a pantalla de inicio».</p>`;
+}
+
+/* ---------- Acciones ---------- */
+function touch(d){d.mod=Date.now();persist(d.id)}
+function newDoc(){
+  const id="p-"+uid();
+  S.docs[id]={id,tipo:"P",num:nextNum("P"),estado:"borrador",fecha:today(),validez:30,cliente:{nombre:"",tel:"",dir:""},titulo:"",lineas:[],dto:0,iva:+S.config.iva,irpf:0,anticipo:40,cond:S.config.cond,firma:"",creado:Date.now(),mod:Date.now()};
+  persist("config");touch(S.docs[id]);cur=id;setTab("editor");
+}
+function openSheet(html,onBind){
+  const bg=document.createElement("div");bg.className="sheet-bg";bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  bg.addEventListener("click",e=>{if(e.target===bg)bg.remove()});document.body.appendChild(bg);onBind&&onBind(bg);return bg;
+}
+function pickFromCatalog(){
+  catFiltro="";catCat="Todas";
+  const cats=["Todas",...new Set(S.config.catalogo.map(x=>x.cat))];
+  const draw=bg=>{const b=$(".body",bg);b.innerHTML=catListHTML(cats,true);
+    const q=$("#catq",b);q.oninput=()=>{catFiltro=q.value;draw(bg);const n=$("#catq",bg);n.focus();n.setSelectionRange(n.value.length,n.value.length)};
+    b.querySelectorAll("[data-catcat]").forEach(x=>x.onclick=()=>{catCat=x.dataset.catcat;draw(bg)});
+    b.querySelectorAll("[data-pick]").forEach(x=>x.onclick=()=>{const it=S.config.catalogo.find(c=>c.id===x.dataset.pick);const d=S.docs[cur];
+      d.lineas.push({id:uid(),desc:it.desc,cant:1,ud:it.ud,precio:it.precio});touch(d);toast("Añadido: "+it.desc);$("#added",bg).textContent=d.lineas.length+" partidas"});};
+  openSheet(`<div class="sechead"><h2>Añadir de mis precios</h2><span class="muted small" id="added"></span></div><div class="body"></div><button class="btn btn-primary" id="sheetOk">Listo</button>`,bg=>{draw(bg);$("#sheetOk",bg).onclick=()=>{bg.remove();render()}});
+}
+function aiSheet(){
+  openSheet(`<div class="sechead"><h2>Partidas con IA</h2></div>
+  <div class="body"><p class="small muted" style="margin:0">Describe la obra como se la contarías a un oficial. La IA propone partidas con tus precios y tú las revisas.</p>
+  <textarea id="aiText" rows="5" placeholder="Ej.: Baño de 5 m², quitar azulejo y bañera, poner plato de ducha de 120, alicatar hasta el techo, inodoro y lavabo nuevos, 2 puntos de luz y pintar el techo."></textarea>
+  <div id="aiOut" class="small muted"></div></div>
+  <div class="row"><button class="btn" id="aiCancel">Cancelar</button><button class="btn btn-primary" id="aiGo">Sacar partidas</button></div>`,bg=>{
+    $("#aiCancel",bg).onclick=()=>bg.remove();
+    $("#aiGo",bg).onclick=async()=>{
+      const txt=$("#aiText",bg).value.trim(); if(!txt){$("#aiOut",bg).textContent="Escribe primero qué hay que hacer.";return}
+      const btn=$("#aiGo",bg);btn.disabled=true;btn.textContent="Calculando…";
+      const precios=S.config.catalogo.map(x=>`${x.desc} | ${x.ud} | ${x.precio}`).join("\n");
+      const prompt=`Eres un jefe de obra de reformas en España. A partir de la descripción del cliente, genera las partidas de un presupuesto.
+Usa PRIORITARIAMENTE estas partidas y precios del profesional (descripción | unidad | precio €):
+${precios}
+Si hace falta una partida que no está en la lista, añádela con un precio de mercado razonable en España y marca "nuevo": true.
+Estima cantidades realistas (m² de paredes ≈ perímetro × altura 2,5 m si no se indica). Unidades permitidas: ud, m², ml, m³, h, kg, pa.
+Responde SOLO con un array JSON: [{"desc":string,"cant":number,"ud":string,"precio":number,"nuevo":boolean}]
+Descripción de la obra: ${txt}`;
+      try{
+        const res=await sampleCap.json(prompt);
+        const arr=Array.isArray(res)?res:(res&&Array.isArray(res.partidas)?res.partidas:[]);
+        if(!arr.length) throw {message:"Sin partidas"};
+        const d=S.docs[cur];
+        arr.forEach(p=>d.lineas.push({id:uid(),desc:String(p.desc||""),cant:+p.cant||1,ud:UNITS.includes(p.ud)?p.ud:"ud",precio:+p.precio||0}));
+        touch(d);bg.remove();render();toast(arr.length+" partidas añadidas. Revisa cantidades y precios.");
+      }catch(e){btn.disabled=false;btn.textContent="Sacar partidas";
+        $("#aiOut",bg).textContent=e&&e.code==="not_granted"?"No se ha dado permiso para usar la IA en esta página.":"No se pudo generar. Prueba a describir la obra con más detalle.";}
+    };
+  });
+}
+
+/* ---------- Exportación ---------- */
+function plainText(d){
+  const c=calc(d),e=S.config.empresa;
+  let t=`*${d.tipo==="F"?"FACTURA":"PRESUPUESTO"} ${d.num}*\n${e.nombre?e.nombre+"\n":""}Fecha: ${fmtDate(d.fecha)}\n\nCliente: ${d.cliente.nombre}\n${d.cliente.dir?"Obra: "+d.cliente.dir+"\n":""}${d.titulo?"Trabajo: "+d.titulo+"\n":""}\n`;
+  d.lineas.forEach(l=>{t+=`• ${l.desc}: ${String(l.cant).replace(".",",")} ${l.ud} x ${eur(l.precio)} = ${eur(l.cant*l.precio)}\n`});
+  t+=`\nSubtotal: ${eur(c.sub)}\n`;
+  if(c.dto)t+=`Descuento ${d.dto}%: -${eur(c.dto)}\n`;
+  t+=`IVA ${d.iva}%: ${eur(c.iva)}\n`;
+  if(c.irpf)t+=`IRPF -${d.irpf}%: -${eur(c.irpf)}\n`;
+  t+=`*TOTAL: ${eur(c.total)}*\n`;
+  if(+d.anticipo)t+=`Anticipo ${d.anticipo}%: ${eur(c.anticipo)}\n`;
+  if(e.tel)t+=`\nCualquier duda: ${e.tel}`;
+  return t;
+}
+function waHref(d){
+  let tel=(d.cliente.tel||"").replace(/\D/g,"");
+  if(tel.length===9)tel="34"+tel;
+  return "https://wa.me/"+(tel||"")+"?text="+encodeURIComponent(plainText(d));
+}
+function buildPDF(d){
+  const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:"mm",format:"a4"});
+  const e=S.config.empresa,c=calc(d),W=210,M=15; let y=M;
+  const amber=[226,164,0], ink=[34,38,43], grey=[107,111,115];
+  if(e.logo){try{const p=pdf.getImageProperties(e.logo);const h=18,w=Math.min(50,h*p.width/p.height);pdf.addImage(e.logo,"PNG",M,y,w,h)}catch(_){}}
+  pdf.setFont("helvetica","bold");pdf.setFontSize(20);pdf.setTextColor(...ink);
+  pdf.text(d.tipo==="F"?"FACTURA":"PRESUPUESTO",W-M,y+7,{align:"right"});
+  pdf.setFontSize(10);pdf.setFont("helvetica","normal");pdf.setTextColor(...grey);
+  pdf.text(`Nº ${d.num}   ·   ${fmtDate(d.fecha)}`,W-M,y+13,{align:"right"});
+  if(d.tipo!=="F")pdf.text(`Válido ${d.validez||30} días`,W-M,y+18,{align:"right"});
+  y+=24; pdf.setFillColor(...amber);pdf.rect(M,y,W-2*M,1.4,"F"); y+=7;
+  pdf.setTextColor(...ink);pdf.setFontSize(9);pdf.setFont("helvetica","bold");pdf.text("DE",M,y);pdf.text("PARA",W/2+2,y);
+  pdf.setFont("helvetica","normal");pdf.setFontSize(10);
+  const from=[e.nombre,e.nif&&("NIF: "+e.nif),e.dir,e.tel,e.email].filter(Boolean);
+  const to=[d.cliente.nombre,d.cliente.dir,d.cliente.tel].filter(Boolean);
+  from.forEach((l,i)=>pdf.text(String(l),M,y+5+i*5)); to.forEach((l,i)=>pdf.text(pdf.splitTextToSize(String(l),W/2-M-2)[0],W/2+2,y+5+i*5));
+  y+=6+Math.max(from.length,to.length,1)*5+3;
+  if(d.titulo){pdf.setFont("helvetica","bold");pdf.setFontSize(12);pdf.text(d.titulo,M,y);y+=4}
+  pdf.autoTable({startY:y+2,margin:{left:M,right:M},
+    head:[["Descripción","Cant.","Ud.","Precio","Importe"]],
+    body:d.lineas.map(l=>[l.desc,String(l.cant).replace(".",","),l.ud,eur(l.precio),eur(l.cant*l.precio)]),
+    styles:{font:"helvetica",fontSize:9.5,cellPadding:2.4,textColor:ink,lineColor:[220,218,211],lineWidth:.1},
+    headStyles:{fillColor:ink,textColor:[255,255,255],fontStyle:"bold"},
+    alternateRowStyles:{fillColor:[247,246,242]},
+    columnStyles:{0:{cellWidth:"auto"},1:{halign:"right",cellWidth:16},2:{halign:"center",cellWidth:13},3:{halign:"right",cellWidth:26},4:{halign:"right",cellWidth:28}}});
+  y=pdf.lastAutoTable.finalY+6;
+  const rows=[["Subtotal",eur(c.sub)]];
+  if(c.dto)rows.push([`Descuento ${d.dto}%`,"-"+eur(c.dto)],["Base imponible",eur(c.base)]);
+  rows.push([`IVA ${d.iva}%`,eur(c.iva)]); if(c.irpf)rows.push([`Retención IRPF ${d.irpf}%`,"-"+eur(c.irpf)]);
+  if(y>240){pdf.addPage();y=M}
+  pdf.setFontSize(10);pdf.setFont("helvetica","normal");
+  rows.forEach(([a,b])=>{pdf.text(a,W-M-60,y);pdf.text(b,W-M,y,{align:"right"});y+=5.5});
+  pdf.setFillColor(...amber);pdf.rect(W-M-64,y-1,64,10,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(13);
+  pdf.text("TOTAL",W-M-60,y+5.8);pdf.text(eur(c.total),W-M-2,y+5.8,{align:"right"});y+=15;
+  pdf.setFont("helvetica","normal");pdf.setFontSize(9.5);
+  if(+d.anticipo){pdf.text(`Anticipo a la firma (${d.anticipo}%): ${eur(c.anticipo)}`,M,y);y+=6}
+  if(d.tipo==="F"&&e.iban){pdf.text("Pago por transferencia a: "+e.iban,M,y);y+=6}
+  if(d.cond){const lines=pdf.splitTextToSize(d.cond,W-2*M);if(y+lines.length*4.5>260){pdf.addPage();y=M}
+    pdf.setFont("helvetica","bold");pdf.text("Condiciones",M,y);y+=5;pdf.setFont("helvetica","normal");pdf.setTextColor(...grey);pdf.text(lines,M,y);y+=lines.length*4.5+4;pdf.setTextColor(...ink)}
+  if(y>245){pdf.addPage();y=M}
+  y=Math.max(y,240);
+  pdf.setDrawColor(...grey);pdf.line(M,y+22,M+70,y+22);pdf.line(W-M-70,y+22,W-M,y+22);
+  pdf.setFontSize(8.5);pdf.text("Firma de la empresa",M,y+26);pdf.text("Conforme, el cliente",W-M-70,y+26);
+  if(d.firma){try{pdf.addImage(d.firma,"PNG",W-M-62,y,54,20)}catch(_){}}
+  return pdf;
+}
+function canShareFiles(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File(["x"],"x.pdf",{type:"application/pdf"})]}))}catch(_){return false}}
+function pdfName(d){return `${d.num} ${d.cliente.nombre||"cliente"}.pdf`.replace(/[\\/:*?"<>|]/g,"").replace("EJEMPLO · ","")}
+function markSent(d){if(d.estado==="borrador"){d.estado="enviado";touch(d);render()}}
+async function exportPDF(d,share){
+  if(!window.jspdf){toast("No se pudo cargar el generador de PDF.");return}
+  const pdf=buildPDF(d),name=pdfName(d);
+  if(share){
+    const file=new File([pdf.output("blob")],name,{type:"application/pdf"});
+    try{await navigator.share({files:[file],title:name,text:`${d.tipo==="F"?"Factura":"Presupuesto"} ${d.num} · Total ${eur(calc(d).total)}`});markSent(d)}
+    catch(err){if(err&&err.name==="AbortError")return;pdf.save(name);markSent(d)}
+    return;
+  }
+  pdf.save(name);toast("PDF descargado");markSent(d);
+}
+/* Copia de seguridad */
+async function backup(){
+  const json=JSON.stringify(S,null,1),name=`copia-presupuestos-${today()}.json`;
+  const file=new File([json],name,{type:"application/json"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e&&e.name==="AbortError")return}}
+  const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function restore(file){
+  const rd=new FileReader();rd.onload=()=>{try{const v=JSON.parse(rd.result);if(!v||!v.config||!v.docs)throw 0;S=v;lsSave();cur=null;render();toast("Copia restaurada: "+Object.keys(S.docs).length+" documentos")}catch(_){toast("Ese archivo no es una copia válida")}};rd.readAsText(file);
+}
+
+/* ---------- Firma ---------- */
+function initSig(){
+  const cv=$("#sig"); if(!cv)return; const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  cv.width=r.width*dpr;cv.height=r.height*dpr;const x=cv.getContext("2d");x.scale(dpr,dpr);x.lineWidth=2.4;x.lineCap="round";x.lineJoin="round";x.strokeStyle="#1a1a1a";
+  let drawing=false,dirty=false;const pos=e=>{const b=cv.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+  cv.onpointerdown=e=>{drawing=true;dirty=true;cv.setPointerCapture(e.pointerId);x.beginPath();x.moveTo(...pos(e))};
+  cv.onpointermove=e=>{if(!drawing)return;x.lineTo(...pos(e));x.stroke()};
+  cv.onpointerup=cv.onpointercancel=()=>drawing=false;
+  $("#sigClear").onclick=()=>{x.clearRect(0,0,cv.width,cv.height);dirty=false};
+  $("#sigSave").onclick=()=>{if(!dirty){toast("Firma primero en el recuadro");return}
+    const o=document.createElement("canvas");o.width=420;o.height=160;const ox=o.getContext("2d");ox.fillStyle="#fff";ox.fillRect(0,0,420,160);ox.drawImage(cv,0,0,420,160);
+    const d=S.docs[cur];d.firma=o.toDataURL("image/png");if(d.estado!=="factura")d.estado="aceptado";touch(d);render();toast("Firmado y aceptado")};
+}
+
+/* ---------- Eventos ---------- */
+function bind(){
+  const app=$("#app");
+  if(tab==="lista"){
+    app.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{cur=b.dataset.open;setTab("editor")});
+    app.querySelectorAll("[data-filtro]").forEach(b=>b.onclick=()=>{filtro=b.dataset.filtro;render()});
+    $("#fabNew").onclick=newDoc; return;
+  }
+  if(tab==="editor"){
+    const d=S.docs[cur]; if(!d)return;
+    $("#back").onclick=()=>setTab("lista");
+    const upd=()=>{const c=calc(d);$("#totals").innerHTML=totalsHTML(d,c);$("#wa").href=waHref(d);touch(d)};
+    [["c_nombre",v=>d.cliente.nombre=v],["c_tel",v=>d.cliente.tel=v],["c_dir",v=>d.cliente.dir=v],["titulo",v=>d.titulo=v],["fecha",v=>d.fecha=v],["cond",v=>d.cond=v],
+     ["dto",v=>d.dto=+v||0],["iva",v=>d.iva=+v],["irpf",v=>d.irpf=+v],["anticipo",v=>d.anticipo=+v||0],["estado",v=>d.estado=v]]
+      .forEach(([id,f])=>{const el=$("#"+id);el.addEventListener(el.tagName==="SELECT"?"change":"input",()=>{f(el.value);upd()})});
+    $("#lineas").addEventListener("input",ev=>{const box=ev.target.closest("[data-line]");if(!box)return;const l=d.lineas.find(x=>x.id===box.dataset.line);const f=ev.target.dataset.f;
+      l[f]=f==="cant"||f==="precio"?(ev.target.value===""?0:+ev.target.value):ev.target.value;$("[data-tot]",box).textContent=eur((+l.cant||0)*(+l.precio||0));upd()});
+    $("#lineas").addEventListener("change",ev=>{if(ev.target.dataset.f==="ud"){const box=ev.target.closest("[data-line]");d.lineas.find(x=>x.id===box.dataset.line).ud=ev.target.value;upd()}});
+    app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{d.lineas=d.lineas.filter(l=>l.id!==b.dataset.del);touch(d);render()});
+    $("#addCat").onclick=pickFromCatalog;
+    $("#addFree").onclick=()=>{d.lineas.push({id:uid(),desc:"",cant:1,ud:"ud",precio:0});touch(d);render();const ta=app.querySelectorAll('[data-f="desc"]');ta[ta.length-1].focus()};
+    $("#addAI").onclick=aiSheet;
+    $("#wa").href=waHref(d);
+    $("#copy").onclick=async()=>{const t=plainText(d);try{await navigator.clipboard.writeText(t);toast("Copiado. Pégalo en WhatsApp o email.")}catch(_){openSheet(`<h2>Copia este texto</h2><textarea rows="12" id="cpy">${esc(t)}</textarea><button class="btn btn-primary" onclick="this.closest('.sheet-bg').remove()">Cerrar</button>`,bg=>{const ta=$("#cpy",bg);ta.focus();ta.select()})}};
+    $("#pdf").onclick=()=>exportPDF(d,false);
+    $("#sharePdf").onclick=()=>exportPDF(d,true);
+    $("#dup").onclick=()=>{const id="p-"+uid();const n=JSON.parse(JSON.stringify(d));Object.assign(n,{id,tipo:"P",num:nextNum("P"),estado:"borrador",fecha:today(),firma:"",creado:Date.now()});n.lineas.forEach(l=>l.id=uid());n.cliente.nombre=n.cliente.nombre?n.cliente.nombre+" (copia)":"";S.docs[id]=n;persist("config");touch(n);cur=id;render();toast("Copia creada: "+n.num)};
+    const toF=$("#toF"); if(toF)toF.onclick=()=>{const id="f-"+uid();const n=JSON.parse(JSON.stringify(d));Object.assign(n,{id,tipo:"F",num:nextNum("F"),estado:"factura",fecha:today(),origen:d.num,cond:`Factura correspondiente al presupuesto ${d.num}.`,creado:Date.now()});S.docs[id]=n;d.estado="factura";touch(d);persist("config");touch(n);cur=id;render();toast("Factura creada: "+n.num)};
+    $("#del").onclick=()=>{$("#delConfirm").hidden=false};
+    $("#delNo").onclick=()=>{$("#delConfirm").hidden=true};
+    $("#delYes").onclick=()=>{delete S.docs[d.id];persist(d.id);cur=null;setTab("lista");toast("Eliminado")};
+    const sc2=$("#sigClear2"); if(sc2)sc2.onclick=()=>{d.firma="";touch(d);render()};
+    initSig();
+    app.querySelectorAll('[data-f="desc"]').forEach(t=>{const fit=()=>{t.style.height="auto";t.style.height=t.scrollHeight+2+"px"};fit();t.addEventListener("input",fit)});
+    return;
+  }
+  if(tab==="catalogo"){
+    const q=$("#catq");q.oninput=()=>{catFiltro=q.value;const pos=q.selectionStart;render();const n=$("#catq");n.focus();n.setSelectionRange(pos,pos)};
+    app.querySelectorAll("[data-catcat]").forEach(b=>b.onclick=()=>{catCat=b.dataset.catcat;render()});
+    app.querySelectorAll("[data-cprice]").forEach(i=>i.oninput=()=>{const it=S.config.catalogo.find(x=>x.id===i.dataset.cprice);it.precio=+i.value||0;S.config.ejemplo=false;persist("config")});
+    app.querySelectorAll("[data-cdel]").forEach(b=>b.onclick=()=>{S.config.catalogo=S.config.catalogo.filter(x=>x.id!==b.dataset.cdel);persist("config");render()});
+    $("#n_add").onclick=()=>{const desc=$("#n_desc").value.trim();if(!desc){toast("Pon una descripción");return}
+      S.config.catalogo.unshift({id:uid(),desc,cat:$("#n_cat").value.trim()||"Varios",ud:$("#n_ud").value,precio:+$("#n_precio").value||0});persist("config");render();toast("Guardado en tus precios")};
+    return;
+  }
+  // ajustes
+  const e=S.config.empresa;
+  [["e_nombre","nombre"],["e_nif","nif"],["e_tel","tel"],["e_email","email"],["e_dir","dir"],["e_iban","iban"]].forEach(([id,k])=>$("#"+id).oninput=ev=>{e[k]=ev.target.value;persist("config")});
+  $("#def_iva").onchange=ev=>{S.config.iva=+ev.target.value;persist("config")};
+  $("#def_cond").oninput=ev=>{S.config.cond=ev.target.value;persist("config")};
+  $("#e_logo").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{
+    const s=Math.min(1,400/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+    e.logo=c.toDataURL("image/png");persist("config");render();toast("Logo guardado")};img.src=rd.result};rd.readAsDataURL(f)};
+  const ld=$("#logoDel"); if(ld)ld.onclick=()=>{e.logo="";persist("config");render()};
+  $("#bk").onclick=backup;
+  $("#rs").onchange=ev=>{const f=ev.target.files[0];if(f)restore(f)};
+}
+
+/* ---------- Arranque ---------- */
+lsLoad();
+if(!Object.keys(S.docs).length&&S.config.ejemplo&&!S.config.seq.P) sampleDoc();
+render();
+
+// Pedir al navegador que no borre los datos guardados
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
+// Funcionar sin conexión y poder instalarla
+if("serviceWorker" in navigator&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
