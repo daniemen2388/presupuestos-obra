@@ -238,6 +238,7 @@ function render(){
 /* ---------- Instalar en el móvil ---------- */
 let installEvt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e});
+function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
 function installed(){
   try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)return true}catch(_){}
   try{return localStorage.getItem("instalada")==="1"}catch(_){return false}
@@ -258,11 +259,15 @@ function viewLista(){
     <div class="grow"><b>Ponla en tu móvil</b><div class="small">Tendrás un icono como las demás aplicaciones.</div></div>
     <button class="btn btn-dark" id="installBtn">Instalar</button>
   </div>
-  <div class="note" id="installHelp" hidden>
+  <div class="note" id="installHelp" hidden>${isIOS()?`
+    <b>En iPhone:</b><br>
+    1. Abre esta página en <b>Safari</b>.<br>
+    2. Toca el botón <b>Compartir</b> (cuadrado con flecha ↑).<br>
+    3. Toca <b>«Añadir a pantalla de inicio»</b> y luego <b>«Añadir»</b>.`:`
     <b>Si no se instala sola:</b><br>
     1. Toca los <b>tres puntitos ⋮</b> arriba a la derecha de Chrome.<br>
     2. Toca <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.<br>
-    3. Toca <b>«Añadir»</b>. Ya tienes el icono amarillo con el €.
+    3. Toca <b>«Añadir»</b>. Ya tienes el icono amarillo con el €.`}
   </div>`}
   <div class="stats">
     <div class="stat"><b class="num">${all.length}</b><span>Total</span></div>
